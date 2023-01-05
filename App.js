@@ -11,13 +11,14 @@ import React from 'react';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
 import Content from './src/Content';
+import Test4 from './src/Test4';
 
 const App = () => {
   return (
     <GestureHandlerRootView style={{flex: 1}}>
       <NavigationContainer>
         <SafeAreaProvider>
-          <Content />
+          <Test4 />
         </SafeAreaProvider>
       </NavigationContainer>
     </GestureHandlerRootView>

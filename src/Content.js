@@ -250,24 +250,25 @@ const Content = () => {
 
   const List = () => {
     return (
-      <AnimatedFlashList
-        ref={scrollRef}
-        // numColumns={1}
-        contentContainerStyle={{
-          paddingTop: contentHeight.value + toolbarHeight + spacing * 2,
-          paddingHorizontal: spacing,
-        }}
-        // contentContainerStyle={scrollViewContainerStyle}
-        // renderScrollComponent={ScrollViewWithHeader}
-        onScroll={scrollHandler}
-        showscrollPoserticalScrollIndicator={false}
-        ItemSeparatorComponent={() => <View style={{margin: spacing}} />}
-        data={data}
-        renderItem={renderItem}
-        // onEndReached={loadMore}
-        // onEndReachedThreshold={5}
-        estimatedItemSize={30}
-      />
+      <Text>Hello</Text>
+      // <AnimatedFlashList
+      //   ref={scrollRef}
+      //   // numColumns={1}
+      //   contentContainerStyle={{
+      //     paddingTop: contentHeight.value + toolbarHeight + spacing * 2,
+      //     paddingHorizontal: spacing,
+      //   }}
+      //   // contentContainerStyle={scrollViewContainerStyle}
+      //   // renderScrollComponent={ScrollViewWithHeader}
+      //   onScroll={scrollHandler}
+      //   showscrollPoserticalScrollIndicator={false}
+      //   ItemSeparatorComponent={() => <View style={{margin: spacing}} />}
+      //   data={data}
+      //   renderItem={renderItem}
+      //   // onEndReached={loadMore}
+      //   // onEndReachedThreshold={5}
+      //   estimatedItemSize={30}
+      // />
     );
   };
 
