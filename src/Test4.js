@@ -1,7 +1,8 @@
+/* eslint-disable no-const-assign */
 /* eslint-disable react-native/no-inline-styles */
 import {FlashList} from '@shopify/flash-list';
-import React, {useEffect, useState} from 'react';
-import {Text, useWindowDimensions, View} from 'react-native';
+import React, {useEffect, useRef, useState} from 'react';
+import {StatusBar, Text, useWindowDimensions, View} from 'react-native';
 import {
   Gesture,
   GestureDetector,
@@ -25,54 +26,78 @@ import ExpandableText from './ExpandableText';
 import {createMaterialTopTabNavigator} from '@react-navigation/material-top-tabs';
 import Tab1 from './screens/Tab1';
 import Tab2 from './screens/Tab2';
+import TabBar from './screens/TabBar';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
-const items = Array.from(Array(100).keys());
 const Tab = createMaterialTopTabNavigator();
 
 const Test4 = () => {
   const {width, height} = useWindowDimensions();
-  const aref = useAnimatedRef();
-  const aref1 = useAnimatedRef();
+
+  const inset = useSafeAreaInsets();
+
+  const arefItems = useAnimatedRef();
+  const arefActivity = useAnimatedRef();
 
   const [topContentOffset, setTopContentOffset] = useState(0);
-  const pulldownDistance = useSharedValue(0);
-  const [refreshing, setRefreshing] = useState(false);
-  const _refreshing = useSharedValue(false);
-  const pulldownThresholdHeight = 100;
-  const AnimatedFlashList = Animated.createAnimatedComponent(FlashList);
 
-  const toolbarHeight = 56;
-  const rHeight = useSharedValue(100);
-  const rThresholdHeight = useSharedValue(20);
+  const toolBarHeight = 56;
+
+  const onEndReached = useSharedValue(false);
   const hHeight = useSharedValue(0);
   const scrollY = useSharedValue(0);
-  const listContentHeight = useSharedValue(1000);
+  const listContentHeight = useSharedValue(0);
+  const currentScreen = useSharedValue(0);
+  const [endHeight, setEndHeight] = useState(0);
+
+  const scrollPosY = useDerivedValue(() => {
+    const yPos = Math.max(scrollY.value - hHeight.value + inset.top, 0);
+    // scrollTo(arefActivity, yPos, false);
+    scrollTo(arefItems, 0, yPos, false);
+    return yPos;
+  }, [scrollY, hHeight, currentScreen]);
+
+  // useDerivedValue(() => {
+  //   if (currentScreen.value === 0) {
+  // scrollTo(
+  //   arefItems,
+  //   0,
+  //   Math.max(scrollY.value - hHeight.value + inset.top, 0),
+  //   false,
+  // );
+  //   } else {
+  // scrollTo(
+  //   arefActivity,
+  //   0,
+  //   Math.max(scrollY.value - hHeight.value + inset.top, 0),
+  //   false,
+  // );
+  //   }
+  // }, [scrollY, hHeight, currentScreen]);
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: event => {
-      listContentHeight.value =
-        event.contentSize.height - event.layoutMeasurement.height;
+      // console.log(event);
+      // const percentageScrolled =
+      //   contentOffset.y / (contentSize.height - contentSize.height);
+      // console.log(
+      //   event.layoutMeasurement.height,
+      //   '    ',
+      //   event.contentSize.height,
+      // );
+
+      // if (percentageScrolled >= 1) {
+      //   console.log('End of list reached');
+      // }
+      // console.log(
+      //   event.contentSize.height +
+      //     hHeight.value -
+      //     event.layoutMeasurement.height,
+      // );
+      // console.log(event.contentOffset.y);
+      listContentHeight.value = event.contentOffset.y;
     },
   });
-
-  // useEffect(() => {
-  //   if (refreshing) {
-  //     setTimeout(() => {
-  //       _refreshing.value = false;
-  //       pulldownDistance.value = withSpring(0, {overshootClamping: true});
-  //       setRefreshing(false);
-  //     }, 1000);
-  //   }
-  // }, [refreshing]);
-
-  // useDerivedValue(() => {
-  //   scrollTo(aref, 0, Math.max(scrollY.value - hHeight.value, 0), false);
-  //   scrollTo(aref1, 0, Math.max(scrollY.value - hHeight.value, 0), false);
-  // });
-
-  const updateRefreshing = () => {
-    setRefreshing(true);
-  };
 
   const panGestureEvent = useAnimatedGestureHandler({
     onStart: (event, context) => {
@@ -82,10 +107,12 @@ const Test4 = () => {
       if (scrollY.value <= 0) {
         scrollY.value = context.y - event.translationY / 2;
       } else {
-        scrollY.value = Math.min(
-          listContentHeight.value,
-          context.y - event.translationY,
-        );
+        if (onEndReached.value) {
+          scrollY.value = context.y - event.translationY / 2;
+        } else {
+          scrollY.value = context.y - event.translationY;
+        }
+        // scrollY.value = context.y - event.translationY;
       }
     },
     onEnd: event => {
@@ -94,10 +121,21 @@ const Test4 = () => {
           overshootClamping: true,
         });
       } else {
-        scrollY.value = withDecay({
-          velocity: -event.velocityY,
-          clamp: [0, listContentHeight.value],
-        });
+        // scrollY.value = withDecay({
+        //   velocity: -event.velocityY,
+        //   // clamp: [0, listContentHeight.value],
+        // });
+        if (onEndReached.value) {
+          scrollY.value = withSpring(listContentHeight.value, {
+            overshootClamping: true,
+          });
+          onEndReached.value = false;
+        } else {
+          scrollY.value = withDecay({
+            velocity: -event.velocityY,
+            // clamp: [0, listContentHeight.value],
+          });
+        }
       }
     },
   });
@@ -112,108 +150,17 @@ const Test4 = () => {
     return {
       transform: [
         {
-          translateY: Math.max(-scrollY.value, -hHeight.value),
+          translateY: Math.max(-scrollY.value, -hHeight.value + inset.top),
         },
       ],
     };
   });
 
-  // const contentOffsetStype = useAnimatedStyle(() => {
-  //   return {
-  //     top: hHeight.value,
-  //   };
-  // }, [hHeight]);
-
-  // const scrollViewStyle = useAnimatedStyle(() => {
-  //   return {
-  //     transform: [
-  //       {
-  //         translateY: Math.max(-scrollY.value, -hHeight.value),
-  //       },
-  //     ],
-  //   };
-  // }, [scrollY]);
-
-  const TabBar = ({state, descriptors, navigation, position}) => {
-    return (
-      <View style={{flexDirection: 'row'}}>
-        {state.routes.map((route, index) => {
-          const {options} = descriptors[route.key];
-          const label =
-            options.tabBarLabel !== undefined
-              ? options.tabBarLabel
-              : options.title !== undefined
-              ? options.title
-              : route.name;
-
-          const isFocused = state.index === index;
-
-          const onTapNavigate = name => {
-            const event = navigation.emit({
-              type: 'tabPress',
-              target: route.key,
-              canPreventDefault: true,
-            });
-
-            if (!isFocused && !event.defaultPrevented) {
-              // if (index === 0) {
-              //   scrollRef1.current?.scrollToOffset({
-              //     offset: scrollPos.value,
-              //     animated: false,
-              //   });
-              // } else {
-              //   scrollRef.current?.scrollToOffset({
-              //     offset: scrollPos.value,
-              //     animated: false,
-              //   });
-              // }
-              navigation.navigate({name, merge: true});
-            }
-          };
-
-          const tap = Gesture.Tap().onStart(() => {
-            runOnJS(onTapNavigate)(route.name);
-          });
-
-          return (
-            <GestureDetector key={index} gesture={Gesture.Race(tap)}>
-              <View
-                style={{
-                  flex: 1,
-                  backgroundColor: 'white',
-                  height: 48,
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                }}>
-                <Text
-                  style={{
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    textAlign: 'center',
-                    // backgroundColor: 'red',
-                    // padding: 4,
-                  }}>
-                  {label}
-                </Text>
-                {/* <Animated.Text style={{ opacity }}>{label}</Animated.Text> */}
-              </View>
-            </GestureDetector>
-          );
-        })}
-      </View>
-    );
-  };
-
   return (
-    <View style={{flex: 1}}>
+    <View style={{flex: 1, backgroundColor: 'blue'}}>
+      <StatusBar backgroundColor="transparent" translucent />
       <PanGestureHandler onGestureEvent={panGestureEvent}>
         <Animated.View>
-          {/* <Animated.View style={[{position: 'absolute'}, refreshStyle]}>
-            <View style={{justifyContent: 'center', alignItems: 'center'}}>
-              <Text>Hello</Text>
-            </View>
-          </Animated.View> */}
-          {/* <Animated.View style={pullDownRefresh}> */}
           <Animated.View
             onLayout={evt => {
               const {height} = evt.nativeEvent.layout;
@@ -222,7 +169,6 @@ const Test4 = () => {
                 hHeight.value = height;
                 setTopContentOffset(height);
               }
-              // setMeasuredHeight(height);
             }}
             style={[
               {
@@ -231,9 +177,8 @@ const Test4 = () => {
               },
               scrollViewStyle,
             ]}>
-            {/* <View style={{height: rHeight.value}} /> */}
             <View style={{padding: 10}}>
-              <View style={{height: 30, backgroundColor: 'green'}} />
+              <View style={{height: 300, backgroundColor: 'green'}} />
               <ExpandableText
                 topContentHeight={hHeight}
                 topContentOffset={topContentOffset}
@@ -246,7 +191,7 @@ const Test4 = () => {
               style={[
                 {
                   position: 'absolute',
-                  height,
+                  height: height - inset.top,
                   width,
                 },
                 scrollViewStyle,
@@ -254,15 +199,34 @@ const Test4 = () => {
               ]}>
               <Tab.Navigator
                 screenOptions={{swipeEnabled: false}}
-                tabBar={props => <TabBar {...props} />}>
+                tabBar={props => (
+                  <TabBar
+                    currentScreen={currentScreen}
+                    arefActivity={arefActivity}
+                    arefItems={arefItems}
+                    scrollY={scrollY}
+                    hHeight={hHeight}
+                    toolBarHeight={toolBarHeight}
+                    {...props}
+                  />
+                )}>
                 <Tab.Screen name="List1">
                   {props => {
                     return (
                       <Tab1
-                        {...props}
+                        size={500}
+                        currentScreen={currentScreen}
+                        screen={0}
+                        ref={arefItems}
+                        scrollHandler={scrollHandler}
                         listContentHeight={listContentHeight}
-                        scrollY={scrollY}
+                        scrollY={scrollPosY}
+                        onEndReached={onEndReached}
+                        setEndHeight={setEndHeight}
                         hHeight={hHeight}
+                        toolbarHeight={toolBarHeight}
+                        inset={inset}
+                        {...props}
                       />
                     );
                   }}
@@ -271,10 +235,19 @@ const Test4 = () => {
                   {props => {
                     return (
                       <Tab1
-                        {...props}
+                        size={200}
+                        screen={1}
+                        currentScreen={currentScreen}
+                        ref={arefActivity}
+                        scrollHandler={scrollHandler}
                         listContentHeight={listContentHeight}
+                        onEndReached={onEndReached}
                         scrollY={scrollY}
+                        toolbarHeight={toolBarHeight}
+                        setEndHeight={setEndHeight}
                         hHeight={hHeight}
+                        inset={inset}
+                        {...props}
                       />
                     );
                   }}
@@ -282,9 +255,18 @@ const Test4 = () => {
               </Tab.Navigator>
             </Animated.View>
           )}
-          {/* </Animated.View> */}
         </Animated.View>
       </PanGestureHandler>
+      {/* <View
+        style={{
+          top: inset.top,
+          left: 0,
+          // position: 'absolute',
+          backgroundColor: 'red',
+          height: height - toolBarHeight - inset.top,
+          wdith: 200,
+        }}
+      /> */}
     </View>
   );
 };
